@@ -1,0 +1,7 @@
+streamlit
+st-gsheets-connection
+pandas
+numpy
+plotly
+prophet
+streamlit-extras
