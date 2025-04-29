@@ -3,7 +3,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 
 def get_connection():
-    return st.connection("gsheets", type=GSheetsConnection)
+    return st.connection("gsheets", type=GSheetsConnection, ttl = 0)
 
 def load_allowed_users():
     conn = get_connection()
