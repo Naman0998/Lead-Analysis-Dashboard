@@ -58,7 +58,7 @@ if not st.session_state.authenticated:
     st.stop()
 
 
-conn = st.connection("gsheets", type=GSheetsConnection)
+conn = st.connection("gsheets", type=GSheetsConnection, ttl = 0)
 
 df = conn.read(worksheet="Leads")
 df = df.dropna(how = "all")
