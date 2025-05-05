@@ -7,6 +7,7 @@ from streamlit_extras.metric_cards import style_metric_cards
 from streamlit_extras.add_vertical_space import add_vertical_space
 from auth_helper import login_user
 from cost_forecasting import forecast_cost
+from allocation import calculate_budget_allocations
 
 # --- Neon-glow and glassmorphism styling ---
 st.markdown(
