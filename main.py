@@ -73,7 +73,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     page = st.radio("Navigate", [
         "Performance Dashboard", "Lead Quality","Conversion Analysis",
-         "Cost Analysis","Lead Overview", "Duplicate Leads"
+         "Cost Analysis","Lead Overview", "Duplicate Leads","Portfolio Allocation"
     ])
 
 # --- Lead Overview Page ---
@@ -259,7 +259,6 @@ elif page == "Conversion Analysis":
     # 4. Net Pull Through: Leads that actually became paying customers
     net_pull_through = round((closed_won_count / total_leads) * 100, 2) if total_leads > 0 else 0
 
-    # Optional: You can style your metrics here
     style_metric_cards(border_left_color="#fa5bff")
 
 
@@ -324,6 +323,98 @@ elif page == "Conversion Analysis":
         st.plotly_chart(fig_source, use_container_width=True)
 
 
+     # Toggle for Table View
+    st.markdown("### 📅 Monthly Conversion Summary")
+    if st.button("📋 See Detailed Monthly Table"):
+        # Load and preprocess data
+        df["Created Date"] = pd.to_datetime(df["Created Date"], errors="coerce")
+        df["Approval Date"] = pd.to_datetime(df["Approval Date"], errors="coerce")
+
+        # Create 'Month-Year' column
+        df["Month-Year"] = pd.to_datetime(df["Created Date"]).dt.to_period("M").astype(str)
+
+        # Calculate closed-won flag
+        df["Closed-Won"] = df["Stage"].str.lower() == "closed-won"
+
+        # Grouped summary
+        grouped = df.groupby(['Lead Source', 'Month-Year']).agg(
+            Total_Leads=("Lead ID", "count"),
+            Conversions=("Converted Count", "sum"),
+            Appointments=("Appointments Completed (Count)", "sum"),
+            Outbound_Calls=("Number of Outbound Calls", "sum"),
+            Closed_Won_Count=("Closed-Won", "sum"),
+            Total_Cost=("Cost", "sum")
+        ).reset_index()
+
+        # Compute derived metrics
+        grouped["Lead to Set (%)"] = round((grouped["Conversions"] / grouped["Total_Leads"]) * 100, 2)
+        grouped["Set to Sit (%)"] = round((grouped["Appointments"] / grouped["Conversions"]) * 100, 2)
+        grouped["Sit to Closed-Won (%)"] = round((grouped["Closed_Won_Count"] / grouped["Appointments"]) * 100, 2)
+        grouped["Net Pull Through (%)"] = round((grouped["Closed_Won_Count"] / grouped["Total_Leads"]) * 100, 2)
+        grouped["Conversion Rate (%)"] = round((grouped["Conversions"] / grouped["Total_Leads"]) * 100, 2)
+        grouped["CPA"] = round(grouped["Total_Cost"] / grouped["Conversions"].replace(0, pd.NA), 2)
+        grouped["CPL"] = round(grouped["Total_Cost"] / grouped["Total_Leads"].replace(0, pd.NA), 2)
+
+
+        lead_sources = grouped['Lead Source'].unique()
+
+        for source in lead_sources:
+            st.subheader(f"📌 Lead Source: {source}")
+            st.dataframe(
+                grouped[grouped["Lead Source"] == source][[
+                    "Month-Year", "Total_Leads", "Conversions", 
+                    "Lead to Set (%)", "Set to Sit (%)", "Sit to Closed-Won (%)",
+                    "Net Pull Through (%)", "Total_Cost", "Conversion Rate (%)", 
+                    "CPA", "CPL"
+                ]].sort_values("Month-Year"),
+                use_container_width=True
+            )
+
+
+    #st.markdown("### 📍 Monthly Conversion Summary by State")
+    if st.button("📊 See Table by State"):
+        # Load and preprocess data
+        df["Created Date"] = pd.to_datetime(df["Created Date"], errors="coerce")
+        df["Approval Date"] = pd.to_datetime(df["Approval Date"], errors="coerce")
+
+        # Create 'Month-Year' column
+        df["Month-Year"] = pd.to_datetime(df["Created Date"]).dt.to_period("M").astype(str)
+
+        # Calculate closed-won flag
+        df["Closed-Won"] = df["Stage"].str.lower() == "closed-won"
+
+        grouped_state = df.groupby(['State', 'Month-Year']).agg(
+            Total_Leads=("Lead ID", "count"),
+            Conversions=("Converted Count", "sum"),
+            Appointments=("Appointments Completed (Count)", "sum"),
+            Outbound_Calls=("Number of Outbound Calls", "sum"),
+            Closed_Won_Count=("Closed-Won", "sum"),
+            Total_Cost=("Cost", "sum")
+        ).reset_index()
+
+        # Derived metrics
+        grouped_state["Lead to Set (%)"] = round((grouped_state["Conversions"] / grouped_state["Total_Leads"]) * 100, 2)
+        grouped_state["Set to Sit (%)"] = round((grouped_state["Appointments"] / grouped_state["Conversions"]) * 100, 2)
+        grouped_state["Sit to Closed-Won (%)"] = round((grouped_state["Closed_Won_Count"] / grouped_state["Appointments"]) * 100, 2)
+        grouped_state["Net Pull Through (%)"] = round((grouped_state["Closed_Won_Count"] / grouped_state["Total_Leads"]) * 100, 2)
+        grouped_state["Conversion Rate (%)"] = round((grouped_state["Conversions"] / grouped_state["Total_Leads"]) * 100, 2)
+        grouped_state["CPA"] = round(grouped_state["Total_Cost"] / grouped_state["Conversions"].replace(0, pd.NA), 2)
+        grouped_state["CPL"] = round(grouped_state["Total_Cost"] / grouped_state["Total_Leads"].replace(0, pd.NA), 2)
+
+        states = grouped_state["State"].unique()
+        for state in states:
+            st.subheader(f"🏷 State: {state}")
+            st.dataframe(
+                grouped_state[grouped_state["State"] == state][[
+                    "Month-Year", "Total_Leads", "Conversions", 
+                    "Lead to Set (%)", "Set to Sit (%)", "Sit to Closed-Won (%)",
+                    "Net Pull Through (%)", "Total_Cost", "Conversion Rate (%)", 
+                    "CPA", "CPL"
+                ]].sort_values("Month-Year"),
+                use_container_width=True
+            )
+
+
 
 
 # --- Cost Analysis Page ---
@@ -363,6 +454,42 @@ elif page == "Duplicate Leads":
     st.title("🧬 Duplicate Leads")
     duplicates = df[df.duplicated(subset=["State", "Zip Code", "First Name"], keep=False)]
     st.dataframe(duplicates)
+
+# --- Portfolio Allocation Page ---
+elif page == "Portfolio Allocation":
+    st.title("Portfolio Allocation")
+
+    # Load your main dataset
+    def load_data():
+        df['Converted'] = df['Converted'].astype(str).str.upper() == 'TRUE'
+        return df
+
+    df = load_data()
+
+    # Budget input slider
+    st.subheader("💰 Lead Budget Allocation")
+    budget = st.slider("Select your total budget", min_value=1000, max_value=1_000_000, step=1000, value=100000)
+
+    # Run allocation calculation
+    grouped, uniform_total, weighted_total = calculate_budget_allocations(df, budget)
+    st.write("Unique values in 'Converted':", df['Converted'].unique())
+
+    if grouped.empty:
+        st.warning("No converted data available to allocate budget. Please check data quality.")
+    else:
+        # Display side-by-side cards
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("### 🔵 Uniform Allocation")
+            st.metric(label="Predicted Closed-Won", value=f"{int(uniform_total):,}")
+            st.dataframe(grouped[['Lead Source', 'Uniform Allocation', 'Uniform Predicted Conversions']])
+
+        with col2:
+            st.markdown("### 🟢 Weighted Allocation")
+            st.metric(label="Predicted Closed-Won", value=f"{int(weighted_total):,}")
+            st.dataframe(grouped[['Lead Source', 'Weighted Allocation', 'Weighted Predicted Conversions']])
+
 
 # Add a footer
 add_vertical_space(3)
